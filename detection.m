@@ -21,6 +21,7 @@ alfa = 0.005;
 % imwrite(uint8(Bkg), 'bkg.png');
 
 imgbk = imread('bkg.png');
+imgMap = zeros(size(imgbk));
 
 thr = 75;
 minArea = 200;
@@ -31,7 +32,7 @@ figure;
 for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a diferença com a imagem de background 
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    imshow(imgfr); hold on;
+    subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on;
     
     imgdif = (abs(double(imgbk(:,:,1))-double(imgfr(:,:,1))) > thr) | (abs(double(imgbk(:,:,2))-double(imgfr(:,:,2))) > thr) | (abs(double(imgbk(:,:,3))-double(imgfr(:,:,3))) > thr);
     % imgdif só fica ativo (a 1) no sítio das onde há movimento aka onde há
@@ -57,7 +58,29 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     end
             
     drawnow
-    
-    
+       
+    for k=1:length(inds)
+        centroid = regionProps(inds(k)).Centroid;
+        
+        for l=1:size(imgMap,1)
+            for c=1:size(imgMap,2)
+                dist = sqrt((c - centroid(1)).^2 + (l - centroid(2)).^2);
+                if (k == 1 && i == 0)
+                    imgMap(l, c) = dist;
+                else
+                    if imgMap(l, c) > dist
+                        imgMap(l, c) = dist;
+                    end
+                end
+            end
+        end
+        
+    end
+        
+    if i == 0
+        imgMap
+    end
+    subplot(1,2,2); imshow(imgMap); title('Heatmap');
     
 end
+
