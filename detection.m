@@ -52,9 +52,12 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
             dWindow = max([lin col]) - upLPoint + 1;
             
             rectangle('Position', [fliplr(upLPoint) fliplr(dWindow)], 'EdgeColor', [1 1 0], 'linewidth', 2);
+            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
         end
     end
             
-    drawnow    
+    drawnow
+    
+    
     
 end
