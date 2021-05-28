@@ -62,7 +62,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         v_max = max(imgMap(:));
 
         ax(2) = subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
-        colormap(flipud(jet)); colorbar; hold on
+        colormap(jet); colorbar; hold on
         caxis([v_min v_max]);
 
     end

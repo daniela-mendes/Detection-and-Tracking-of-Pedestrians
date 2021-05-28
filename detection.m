@@ -1,6 +1,7 @@
 close all, clear all
 
 gt = xml2struct('PETS2009-S2L1.xml');
+last_fr = {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]}; % este array vai conter todos os centroides das regioes das ultimas 15 frames
 
 path = 'View_001/';
 
@@ -84,6 +85,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'FilledImage', 'Centroid');
     inds = find([regionProps.Area] > minArea); % guarda os indices das regiões que satisfazem a condição
     
+    last_fr{rem(i,15)+1} = []; % rem(i,15)+1=[] eh a forma de acedermos ciclicamente ah posicao do array que foi atualizada ha mais tempo e limpar os centroids associados a essa frame; 
     for j=1:length(inds)
         [lin col] = find(lb == inds(j)); % devolve todas as posições [y x] da região 
         upLPoint = min([lin col]); % devolve y, x
@@ -92,6 +94,9 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
 
         rectangle('Position', box, 'EdgeColor', [1 1 0], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
         text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
+        
+        last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(1); % onde limpamos os centroides da frame mais antiga, escrevemos agora os centroides da frame mais recente
+        last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(2);
         
         % ----------- IoU ----------- %
         for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
@@ -104,7 +109,12 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         % --------------------------- %
         
     end
-            
+    
+    n_fr = min(i+1, 15); %para evitar que, nas primeiras 3 frames, tentemos acessar os centroides de frames que ainda não visitamos
+    for f=1:n_fr
+        plot(last_fr{f}([1:2:length(last_fr{f})]), last_fr{f}([2:2:length(last_fr{f})]), 'y*'); % plot das trajetorias
+    end
+    
     drawnow
     % --------------------------------------------------------------------- %
     
