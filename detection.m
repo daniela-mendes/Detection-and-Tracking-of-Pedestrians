@@ -12,6 +12,7 @@ strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', 0, 'jpg'); %string com o nome 
 I = imread(strFrame);
 Bkg = zeros(size(I)); %imagem a zeros (inicialmente) do tamanho das nossas frames
 
+% ---------------------- Calculo da background image ---------------------- %
 alfa = 0.005;
 
 % for i=0:(nFrames-1) %vamos percorrer todas as frames
@@ -22,9 +23,10 @@ alfa = 0.005;
 % end
 % 
 % imwrite(uint8(Bkg), 'bkg.png');
+% ------------------------------------------------------------------------- %
 
 imgbk = imread('bkg.png');
-imgMap = zeros(size(imgbk));
+imgMap = zeros(size(imgbk, 1), size(imgbk, 2));
 
 thr = 75;
 minArea = 200;
@@ -36,8 +38,8 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    % ax(1) = subplot(1,2,1); 
-    imshow(imgfr); title('Pedestrian Detection'); hold on;
+    ax(1) = subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on;
+    
     
     % -------------- regioes do ground truth para esta frame -------------- %
     gt_regs = zeros(20,4); % vetor onde guardamos as bounding boxes de cada regiao do ground truth
@@ -67,12 +69,10 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     end    
 
     gt_regs = gt_regs(1:n,:);
-        
     % --------------------------------------------------------------------- %
     
     
     % ------------- regioes detetadas por nós para esta frame ------------- %
-    
     imgdif = (abs(double(imgbk(:,:,1))-double(imgfr(:,:,1))) > thr) | (abs(double(imgbk(:,:,2))-double(imgfr(:,:,2))) > thr) | (abs(double(imgbk(:,:,3))-double(imgfr(:,:,3))) > thr);
     % imgdif só fica ativo (a 1) no sítio das onde há movimento aka onde há
     % diferenças
@@ -94,7 +94,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
         
         % ----------- IoU ----------- %
-        for d=1:length(gt_regs) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
+        for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
             box_gt = [gt_regs(d, 1) gt_regs(d, 2) gt_regs(d, 3) gt_regs(d, 4)];
             intersection = rectint(box, box_gt); %rectint calcula a area de intersecao entre as duas regioes dadas
             union = (box(3) * box(4)) + (box_gt(3) * box_gt(4)) - intersection;
@@ -106,27 +106,33 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     end
             
     drawnow
-    
     % --------------------------------------------------------------------- %
-       
-%     for k=1:length(inds) 
-%             %centroid = regionProps(inds(k)).Centroid;
-%             %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
-%         [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
-%         for pos=1:length([lin col])
-%             imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
-%         end
-%         
-%     end
-%     if rem(i,10) == 0
-%         v_min = min(imgMap(:));
-%         v_max = max(imgMap(:));
-% 
-%         ax(2) = subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
-%         colormap(ax(2), flipud(jet)); colorbar; hold on
-%         caxis([v_min v_max]);
-%         drawnow
-%     end
+    
+    
+    % --------------------------- heatmap --------------------------------- %   
+    for k=1:length(inds) 
+            %centroid = regionProps(inds(k)).Centroid;
+            %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
+        [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
+        for pos=1:length([lin col])
+            imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
+        end
+        
+    end
+    if rem(i,10) == 0
+        v_min = min(imgMap(:));
+        v_max = max(imgMap(:));
+
+        ax(2) = subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
+        colormap(ax(2), jet); colorbar; hold on
+        caxis([v_min v_max]);
+        drawnow
+    end
+    % --------------------------------------------------------------------- %
     
 end
+
+% ---------------------- pergunta do optical flow ------------------------- %
+fprintf('%s\n%s\n', 'Podemos colecionar alguns centróides de modo a estimar um vetor que nos dará informações sobre a direção, trajetória e velocidade por exemplo, tendo em conta que a footage se trata de câmera fixa.', 'Desta forma podemos criar estimativas de onde se irá encontrar um objeto numa dada frame, desde que a sua trajetória não sofra mudança de direção. V=centroide_atual-centroide_anterior/intervalo de tempo (de uma frame para outra por exemplo)');
+% ------------------------------------------------------------------------- %
 
