@@ -34,7 +34,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    ax(1) = subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on;
+    ax(1) = subplot(1,2,1); imshow(imgfr); title('Pedestrians'); hold on;
     
     imgdif = (abs(double(imgbk(:,:,1))-double(imgfr(:,:,1))) > thr) | (abs(double(imgbk(:,:,2))-double(imgfr(:,:,2))) > thr) | (abs(double(imgbk(:,:,3))-double(imgfr(:,:,3))) > thr);
     % imgdif só fica ativo (a 1) no sítio das onde há movimento aka onde há

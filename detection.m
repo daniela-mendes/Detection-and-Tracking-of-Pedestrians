@@ -1,7 +1,14 @@
 close all, clear all
 
 gt = xml2struct('PETS2009-S2L1.xml');
-last_fr = {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]}; % este array vai conter todos os centroides das regioes das ultimas 15 frames
+last_fr = {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]}; % este array vai conter todos os centroides das regioes das ultimas 15 frames - usado para traçar trajetorias dinamicas
+
+% ------ arrays para calcular labels ------ %
+bbox_last_fr = {}; % este array vai conter as bounding boxes de todas as regioes da ultima frame visitada
+idx_last_fr = []; % array com indices das regioes da ultima frame visitada
+bbox_curr_fr = {}; % este array vai conter as bounding boxes de todas as regioes da frame em que estamos
+idx_curr_fr = []; % este array vai conter os indices das regioes da bbox_last_fr com as quais cada umas das novas regioes interseta
+% --------------------------------------- %
 
 path = 'View_001/';
 
@@ -39,7 +46,8 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    ax(1) = subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on;
+    % subplot(1,2,1); 
+    imshow(imgfr); title('Pedestrian Detection'); hold on;
     
     
     % -------------- regioes do ground truth para esta frame -------------- %
@@ -86,14 +94,47 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     inds = find([regionProps.Area] > minArea); % guarda os indices das regiões que satisfazem a condição
     
     last_fr{rem(i,15)+1} = []; % rem(i,15)+1=[] eh a forma de acedermos ciclicamente ah posicao do array que foi atualizada ha mais tempo e limpar os centroids associados a essa frame; 
+    
+    bbox_curr_fr = []; %vamos guardar as bounding boxes das regioes desta frame
+    idx_curr_fr = []; %e aqui guardamos os indices com as quais essas bounding boxes intersetam
+    
     for j=1:length(inds)
         [lin col] = find(lb == inds(j)); % devolve todas as posições [y x] da região 
         upLPoint = min([lin col]); % devolve y, x
         dWindow = max([lin col]) - upLPoint + 1; % devolve height, width
         box = [fliplr(upLPoint) fliplr(dWindow)];
+        
+        if i ~= 0 % se estivermos na primeira frame, vamos simplesmente guardar as regioes, nao temos que compara-las com as da frame anterior, porque nao existe frame anterior
+            overlap = false;
+            maximo = 0;
+            idx_maximo = 0;
+            for r=1:length(bbox_last_fr)
+                if rectint(box, bbox_last_fr{r}) > maximo %interseccao ~= o quer dizer que ha overlap das regioes e que eh a mesmas regiao ativa
+                    overlap = true;
+                    maximo = rectint(box, bbox_last_fr{r});
+                    idx_maximo = idx_last_fr(r); %quando ha intersecao, indices deverao ser iguais pois terao a mesma label
+                end
+            end
+            
+            if overlap == false 
+                if j ~= 1 % a nossa regiao detetada nao intersetou com nenhuma regiao da frame anterior, o que significa que eh uma regiao nova
+                    idx_maximo = max(max(idx_last_fr), max(idx_curr_fr)) + 1; % a nova regiao fica com uma nova label, imediatamente a seguir ah label mais alta que ja existia
+                else
+                    idx_maximo = max(idx_last_fr) + 1;
+                end
+            end
+            
+            bbox_curr_fr{end+1} = box;
+            idx_curr_fr(end+1) = idx_maximo;
+            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(idx_curr_fr(end)), 'Color', 'w','FontSize', 20);
+            
+        else
+            bbox_curr_fr{end+1} = box; %para a primeira frame, apenas guardamos bounding box de cada regiao
+            idx_curr_fr(end+1) = j; %labels na primeira frame correspondem ah ordem em que vemos as regioes
+            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
+        end
 
         rectangle('Position', box, 'EdgeColor', [1 1 0], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
-        text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
         
         last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(1); % onde limpamos os centroides da frame mais antiga, escrevemos agora os centroides da frame mais recente
         last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(2);
@@ -110,6 +151,9 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         
     end
     
+    bbox_last_fr = bbox_curr_fr; %
+    idx_last_fr = idx_curr_fr;
+    
     n_fr = min(i+1, 15); %para evitar que, nas primeiras 3 frames, tentemos acessar os centroides de frames que ainda não visitamos
     for f=1:n_fr
         plot(last_fr{f}([1:2:length(last_fr{f})]), last_fr{f}([2:2:length(last_fr{f})]), 'y*'); % plot das trajetorias
@@ -120,24 +164,24 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     
     % --------------------------- heatmap --------------------------------- %   
-    for k=1:length(inds) 
-            %centroid = regionProps(inds(k)).Centroid;
-            %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
-        [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
-        for pos=1:length([lin col])
-            imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
-        end
-        
-    end
-    if rem(i,10) == 0
-        v_min = min(imgMap(:));
-        v_max = max(imgMap(:));
-
-        ax(2) = subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
-        colormap(ax(2), jet); colorbar; hold on
-        caxis([v_min v_max]);
-        drawnow
-    end
+%     for k=1:length(inds) 
+%             %centroid = regionProps(inds(k)).Centroid;
+%             %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
+%         [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
+%         for pos=1:length([lin col])
+%             imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
+%         end
+%         
+%     end
+%     if rem(i,10) == 0
+%         v_min = min(imgMap(:));
+%         v_max = max(imgMap(:));
+% 
+%         subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
+%         colormap(jet); colorbar; hold on
+%         caxis([v_min v_max]);
+%         drawnow
+%     end
     % --------------------------------------------------------------------- %
     
 end
