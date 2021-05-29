@@ -34,7 +34,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    ax(1) = subplot(1,2,1); imshow(imgfr); title('Pedestrians'); hold on;
+    subplot(1,2,1); imshow(imgfr); title('Pedestrians'); hold on;
     
     imgdif = (abs(double(imgbk(:,:,1))-double(imgfr(:,:,1))) > thr) | (abs(double(imgbk(:,:,2))-double(imgfr(:,:,2))) > thr) | (abs(double(imgbk(:,:,3))-double(imgfr(:,:,3))) > thr);
     % imgdif só fica ativo (a 1) no sítio das onde há movimento aka onde há
@@ -47,9 +47,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'FilledImage', 'Centroid');
     inds = find([regionProps.Area] > minArea); % guarda os indices das regiões que satisfazem a condição
      
-    for k=1:length(inds) 
-            %centroid = regionProps(inds(k)).Centroid;
-            %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
+    for k=1:length(inds)
         [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
         for pos=1:length([lin col])
             imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
@@ -61,7 +59,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         v_min = min(imgMap(:));
         v_max = max(imgMap(:));
 
-        ax(2) = subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
+        subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
         colormap(jet); colorbar; hold on
         caxis([v_min v_max]);
 

@@ -38,7 +38,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on; 
+    subplot(1,2,1); imshow(imgfr); title('Detected pedestrians (white) VS ground truth (yellow)'); hold on; 
     
     
     % -------------- regioes do ground truth para esta frame -------------- %
@@ -58,7 +58,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         x = str2double(boundingBox(3).Value)-(w/2);
         y = str2double(boundingBox(4).Value)-(h/2);
         
-        rectangle('Position', [x y w h], 'EdgeColor', [1 1 1], 'linewidth', 2);        
+        rectangle('Position', [x y w h], 'EdgeColor', [1 1 0], 'linewidth', 2);        
         
         gt_regs(n+1, 1) = x;
         gt_regs(n+1, 2) = y;
@@ -90,7 +90,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
         dWindow = max([lin col]) - upLPoint + 1; % devolve height, width
         box = [fliplr(upLPoint) fliplr(dWindow)];
     
-        rectangle('Position', box, 'EdgeColor', [1 1 0], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
+        rectangle('Position', box, 'EdgeColor', [1 1 1], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
         
         % ----------- IoU ----------- %
         for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós

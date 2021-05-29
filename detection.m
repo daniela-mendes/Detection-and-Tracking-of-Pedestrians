@@ -1,6 +1,6 @@
 close all, clear all
 
-gt = xml2struct('PETS2009-S2L1.xml');
+%gt = xml2struct('PETS2009-S2L1.xml');
 last_fr = {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]}; % este array vai conter todos os centroides das regioes das ultimas 15 frames - usado para traçar trajetorias dinamicas
 
 % ------ arrays para calcular labels ------ %
@@ -35,6 +35,7 @@ alfa = 0.005;
 
 imgbk = imread('bkg.png');
 imgMap = zeros(size(imgbk, 1), size(imgbk, 2));
+imgTraj = imread('bkg.png');
 
 thr = 75;
 minArea = 200;
@@ -46,38 +47,37 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
     imgfr = imread(strFrame); %para ir buscar cada imagem
-    % subplot(1,2,1); 
-    imshow(imgfr); title('Pedestrian Detection'); hold on;
+    subplot(1,2,1); imshow(imgfr); title('Pedestrian Detection'); hold on;
     
     
     % -------------- regioes do ground truth para esta frame -------------- %
-    gt_regs = zeros(20,4); % vetor onde guardamos as bounding boxes de cada regiao do ground truth
-    n=0;
-    
-    frame = gt.Children((2*i)+2);
-    regionsList = frame.Children(2); %regionsList contem as regioes do ground truth
-    
-    %Vamos iterar sobre todas as regiões de regionsList para pintarmos as suas boxes
-    for j=2:2:length(regionsList.Children)
-        region = regionsList.Children(j);
-        boundingBox = region.Children(2).Attributes; % boundingBox tem o nome e o valor das coordenadas da box
-        
-        w = str2double(boundingBox(2).Value);
-        h = str2double(boundingBox(1).Value);
-        x = str2double(boundingBox(3).Value)-(w/2);
-        y = str2double(boundingBox(4).Value)-(h/2);
-        
-        rectangle('Position', [x y w h], 'EdgeColor', [1 1 1], 'linewidth', 2);        
-        
-        gt_regs(n+1, 1) = x;
-        gt_regs(n+1, 2) = y;
-        gt_regs(n+1, 3) = w;
-        gt_regs(n+1, 4) = h;
-        n = n+1;        
-    
-    end    
-
-    gt_regs = gt_regs(1:n,:);
+%     gt_regs = zeros(20,4); % vetor onde guardamos as bounding boxes de cada regiao do ground truth
+%     n=0;
+%     
+%     frame = gt.Children((2*i)+2);
+%     regionsList = frame.Children(2); %regionsList contem as regioes do ground truth
+%     
+%     %Vamos iterar sobre todas as regiões de regionsList para pintarmos as suas boxes
+%     for j=2:2:length(regionsList.Children)
+%         region = regionsList.Children(j);
+%         boundingBox = region.Children(2).Attributes; % boundingBox tem o nome e o valor das coordenadas da box
+%         
+%         w = str2double(boundingBox(2).Value);
+%         h = str2double(boundingBox(1).Value);
+%         x = str2double(boundingBox(3).Value)-(w/2);
+%         y = str2double(boundingBox(4).Value)-(h/2);
+%         
+%         rectangle('Position', [x y w h], 'EdgeColor', [1 1 0], 'linewidth', 2);        
+%         
+%         gt_regs(n+1, 1) = x;
+%         gt_regs(n+1, 2) = y;
+%         gt_regs(n+1, 3) = w;
+%         gt_regs(n+1, 4) = h;
+%         n = n+1;        
+%     
+%     end    
+% 
+%     gt_regs = gt_regs(1:n,:);
     % --------------------------------------------------------------------- %
     
     
@@ -108,11 +108,13 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
             overlap = false;
             maximo = 0;
             idx_maximo = 0;
+            idx_r = 0;
             for r=1:length(bbox_last_fr)
                 if rectint(box, bbox_last_fr{r}) > maximo %interseccao ~= o quer dizer que ha overlap das regioes e que eh a mesmas regiao ativa
                     overlap = true;
                     maximo = rectint(box, bbox_last_fr{r});
                     idx_maximo = idx_last_fr(r); %quando ha intersecao, indices deverao ser iguais pois terao a mesma label
+                    idx_r = r; % queremos guardar o r para, no calculo da trajetoria, conseguirmos ir buscar a regiao em bbox_last_fr que esta na posicao r
                 end
             end
             
@@ -122,31 +124,36 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
                 else
                     idx_maximo = max(idx_last_fr) + 1;
                 end
+%             else
+%                 last = bbox_last_fr{idx_r}; % last eh a regiao na bbox_last_fr que eh analoga ah regiao em questao (i.e. box)
+%                 centroid_x = [(last(1)+(last(3)/2)) (box(1)+(box(3)/2))];
+%                 centroid_y = [(last(2)+(last(4)/2)) (box(2)+(box(4)/2))];
+%                 plot(centroid_x, centroid_y, 'w-');
             end
             
             bbox_curr_fr{end+1} = box;
             idx_curr_fr(end+1) = idx_maximo;
-            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(idx_curr_fr(end)), 'Color', 'w','FontSize', 20);
+            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2)-(regionProps(inds(j)).BoundingBox(4)/2)-10, num2str(idx_curr_fr(end)), 'Color', [0.949 0.949 0.949],'FontSize', 20);
             
         else
             bbox_curr_fr{end+1} = box; %para a primeira frame, apenas guardamos bounding box de cada regiao
             idx_curr_fr(end+1) = j; %labels na primeira frame correspondem ah ordem em que vemos as regioes
-            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2), num2str(j), 'Color', 'w','FontSize', 20);
+            text(regionProps(inds(j)).Centroid(1), regionProps(inds(j)).Centroid(2)-(regionProps(inds(j)).BoundingBox(4)/2)-10, num2str(j), 'Color', [0.949 0.949 0.949],'FontSize', 20);
         end
 
-        rectangle('Position', box, 'EdgeColor', [1 1 0], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
+        rectangle('Position', box, 'EdgeColor', [1 1 1], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
         
         last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(1); % onde limpamos os centroides da frame mais antiga, escrevemos agora os centroides da frame mais recente
         last_fr{rem(i,15)+1}(end+1) = regionProps(inds(j)).Centroid(2);
         
         % ----------- IoU ----------- %
-        for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
-            box_gt = [gt_regs(d, 1) gt_regs(d, 2) gt_regs(d, 3) gt_regs(d, 4)];
-            intersection = rectint(box, box_gt); %rectint calcula a area de intersecao entre as duas regioes dadas
-            union = (box(3) * box(4)) + (box_gt(3) * box_gt(4)) - intersection;
-            i_o_u = intersection/union;
-            % if i_o_U ~=0; I_over_U !!!!!! bboxOverlapRatio
-        end
+%         for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
+%             box_gt = [gt_regs(d, 1) gt_regs(d, 2) gt_regs(d, 3) gt_regs(d, 4)];
+%             intersection = rectint(box, box_gt); %rectint calcula a area de intersecao entre as duas regioes dadas
+%             union = (box(3) * box(4)) + (box_gt(3) * box_gt(4)) - intersection;
+%             i_o_u = intersection/union;
+%             % if i_o_U ~=0; I_over_U !!!!!! bboxOverlapRatio
+%         end
         % --------------------------- %
         
     end
@@ -156,37 +163,21 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
     n_fr = min(i+1, 15); %para evitar que, nas primeiras 3 frames, tentemos acessar os centroides de frames que ainda não visitamos
     for f=1:n_fr
-        plot(last_fr{f}([1:2:length(last_fr{f})]), last_fr{f}([2:2:length(last_fr{f})]), 'y*'); % plot das trajetorias
+        plot(last_fr{f}([1:2:length(last_fr{f})]), last_fr{f}([2:2:length(last_fr{f})]), 'w*'); % plot das trajetorias dinâmicas
     end
     
     drawnow
     % --------------------------------------------------------------------- %
     
     
-    % --------------------------- heatmap --------------------------------- %   
-%     for k=1:length(inds) 
-%             %centroid = regionProps(inds(k)).Centroid;
-%             %imgMap(round(centroid(2)), round(centroid(1))) = imgMap(round(centroid(2)), round(centroid(1))) + 1;
-%         [lin col] = find(lb == inds(k)); % devolve todas as posições [y x] da região
-%         for pos=1:length([lin col])
-%             imgMap(lin(pos), col(pos)) = imgMap(lin(pos), col(pos)) + 1;
-%         end
-%         
-%     end
-%     if rem(i,10) == 0
-%         v_min = min(imgMap(:));
-%         v_max = max(imgMap(:));
-% 
-%         subplot(1,2,2); imshow(imgMap); title('Heatmap'); hold on
-%         colormap(jet); colorbar; hold on
-%         caxis([v_min v_max]);
-%         drawnow
-%     end
+    % ------------- trajetorias realizadas pelos pedestres ---------------- %
+    for k=1:length(inds) 
+        centroid_x = round(regionProps(inds(k)).Centroid(1));
+        centroid_y = round(regionProps(inds(k)).Centroid(2));
+        imgTraj(centroid_y-1:centroid_y+1, centroid_x-1:centroid_x+1, 1) = 255;
+        imgTraj(centroid_y-1:centroid_y+1, centroid_x-1:centroid_x+1, 2:3) = 0;
+    end
+    subplot(1,2,2); imshow(imgTraj); title('Performed Trajectories');
     % --------------------------------------------------------------------- %
     
 end
-
-% ---------------------- pergunta do optical flow ------------------------- %
-fprintf('%s\n%s\n', 'Podemos colecionar alguns centróides de modo a estimar um vetor que nos dará informações sobre a direção, trajetória e velocidade por exemplo, tendo em conta que a footage se trata de câmera fixa.', 'Desta forma podemos criar estimativas de onde se irá encontrar um objeto numa dada frame, desde que a sua trajetória não sofra mudança de direção. V=centroide_atual-centroide_anterior/intervalo de tempo (de uma frame para outra por exemplo)');
-% ------------------------------------------------------------------------- %
-
