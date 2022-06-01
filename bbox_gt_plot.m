@@ -1,11 +1,13 @@
-close all, clear all
+close all
 
 gt = xml2struct('PETS2009-S2L1.xml');
 
 path = 'View_001/';
 
 nFrames = size(dir([path '/*.jpg']), 1); %dir da-nos uma lista com os nomes de todas as frames .jpg e o size da-nos o numero de frames
-I_over_O = zeros(nFrames, 1); % para guardar as intersections over unions das regions de todas as frames
+
+IoU_regs = {}; % para guardar as IoU das regions da frame atual
+thr_success = zeros(21, 1); % cada posicao corresponde a um threshold de 0 a 1 com step de 0.05
 
 % as proximas duas linhas foram calculadas aqui para conseguirmos criar o Bkg com o tamanho das frames
 strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', 0, 'jpg'); %string com o nome da primeira frame
@@ -13,8 +15,11 @@ I = imread(strFrame);
 Bkg = zeros(size(I)); %imagem a zeros (inicialmente) do tamanho das nossas frames
 
 % ---------------------- Calculo da background image ---------------------- %
-alfa = 0.005;
+% Deixamos este codigo comentado pois subtemos tambem a background image ja
+% calculada atraves deste codigo, dado que eh um processo muito demorado. 
+% No entanto, pode ser descomentado e funciona na mesma. 
 
+% alfa = 0.005;
 % for i=0:(nFrames-1) %vamos percorrer todas as frames
 %     strFrame = sprintf('%s%s%.4d.%s', path, 'frame_', i, 'jpg');
 %     Y = imread(strFrame);
@@ -84,6 +89,7 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'FilledImage', 'Centroid');
     inds = find([regionProps.Area] > minArea); % guarda os indices das regiões que satisfazem a condição
     
+    IoU_regs = []; % vetor eh limpo para cada frame, para que os valores correspondem apenas as IoU das regioes da frame atual
     for j=1:length(inds)
         [lin col] = find(lb == inds(j)); % devolve todas as posições [y x] da região 
         upLPoint = min([lin col]); % devolve y, x
@@ -92,19 +98,50 @@ for i=0:(nFrames-1) % ler frames sequencialmente e para cada imagem calcular a d
     
         rectangle('Position', box, 'EdgeColor', [1 1 1], 'linewidth', 2); %fliplr porque precisamos que position = [x y w h]
         
-        % ----------- IoU ----------- %
-        for d=1:size(gt_regs, 1) % gt_regs tem as bounding boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para calcular a intersecao com a regiao detetada por nós
-            box_gt = [gt_regs(d, 1) gt_regs(d, 2) gt_regs(d, 3) gt_regs(d, 4)];
+        % ----------- IoU das regioes da frame atual ----------- %
+        max_intersection = 0; % variavel serve para guardar o valor de intersecao entre a regiao, pois este valor eh necessario para calcular a union e a IoU
+        max_box_gt = []; %variavel serve para guardar a bounding box da regiao do ground truth que interseta com a nossa regiao detetada: para calcular a union
+        i_o_u = 0; % para calcular IoU= intersection/union; quando nao ha intersecao, esta variavel nao eh atualizada e IoU da regiao em questao eh zero
+        
+        for d=1:size(gt_regs, 1) % gt_regs tem as b_boxes das regions do ground truth e queremos iterar sobre cada regiao do gt para encontrar aquela que interseta com a noss regiao detetada
+            box_gt = [gt_regs(d, 1) gt_regs(d, 2) gt_regs(d, 3) gt_regs(d, 4)]; % guarda a bounding box da regiao do ground truth que estamos a testar agora
             intersection = rectint(box, box_gt); %rectint calcula a area de intersecao entre as duas regioes dadas
-            union = (box(3) * box(4)) + (box_gt(3) * box_gt(4)) - intersection;
-            i_o_u = intersection/union;
-            % if i_o_U ~=0; I_over_U !!!!!! bboxOverlapRatio
+            if intersection > max_intersection % se encontrarmos uma regiao do ground truth com a qual a regiao detetada por nos tenha uma maior intersecao
+                max_intersection = intersection; % vamos passar a considerar essa regiao para o calculo do IoU, descartando a anterior que tinha menor intersecao
+                max_box_gt = box_gt; %max_box_gt contem a bounding box da regiao com a qual ha maior intersecao ate ao momento
+            end
         end
-        % --------------------------- %
+        
+        if max_intersection ~= 0 % havendo intersecao da nossa regiao detetada com uma regiao do ground truth, calculamos o IoU da regiao
+            union = (box(3) * box(4)) + (max_box_gt(3) * max_box_gt(4)) - max_intersection; 
+            i_o_u = max_intersection/union;
+        end
+        IoU_regs(end+1) = i_o_u;    
+
+        % ----------------------------------------------------- %
         
     end
     
-    drawnow
+    
+    % --------------- IoU da frame atual para cada threshold -------------- %
+    for t=1:length(thr_success) % para cada threshold
+        var = 0;
+        thresh = (t-1)*0.05; 
+        for region=1:length(IoU_regs)
+            if IoU_regs(region) >= thresh
+                var = var + 1; % contamos as regioes da frame atual cuja IoU eh maior ou igual ao threshold
+            end
+        end
+        thr_success(t) = thr_success(t)+ (var/length(IoU_regs)); % calculamos o IoU da frame (ao dividirmos o var pelo numero de regioes) e somamo-lo na posicao do threshold em questao.
+                                                                 % somamos aqui para que, no final, so tenhamos que dividir pelo numero
+                                                                    % total de frames, em vez de termos (no final) que somar todos os
+                                                                    % valores e so depois fazer a divisao
+    end
     % --------------------------------------------------------------------- %
     
+    drawnow
+    
 end
+
+thr_success = (thr_success/nFrames)*100;
+subplot(1,2,2); plot([0:0.05:1], thr_success, 'r*-'); title('Success Plot: % of frames with overlap ratio >= threshold'); xlabel('Threshold'); ylabel('Percentage of frames');

@@ -17,7 +17,7 @@ while continuar == true
         case 2
             heatmap
         case 3
-            fprintf('%s\n%s\n', 'Podemos colecionar alguns centróides de modo a estimar um vetor que nos dará informações sobre a direção, trajetória e velocidade por exemplo, tendo em conta que a footage se trata de câmera fixa.', 'Desta forma podemos criar estimativas de onde se irá encontrar um objeto numa dada frame, desde que a sua trajetória não sofra mudança de direção. V=centroide_atual-centroide_anterior/intervalo de tempo (de uma frame para outra por exemplo)');
+            fprintf('%s\n%s\n\n', 'Podemos colecionar alguns centróides de modo a estimar um vetor que nos dará informações sobre a direção, trajetória e velocidade por exemplo, tendo em conta que a footage se trata de câmera fixa.', 'Desta forma podemos criar estimativas de onde se irá encontrar um objeto numa dada frame, desde que a sua trajetória não sofra mudança de direção. V=centroide_atual-centroide_anterior/intervalo de tempo (de uma frame para outra por exemplo)');
         case 4
             bbox_gt_plot
         case 5
